@@ -1,0 +1,49 @@
+{
+    	"analysis": {
+			"filter": {
+				"original": {
+					"type": "lowercase"
+				},
+				"phrase": {
+					"type": "shingle",
+					"max_shingle_size": 20
+				},
+				"partial": {
+					"type": "ngram",
+					"min_gram": 1,
+					"max_gram": 30
+				},
+				"word": {
+					"type": "word_delimiter",
+					"split_on_numerics": false,
+					"preserve_original": true
+				}
+			},
+			"analyzer": {
+				"Partial": {
+					"type": "custom",
+					"tokenizer": "keyword",
+					"filter": [
+						"partial",
+						"original"
+					]
+				},
+				"Phrase": {
+					"type": "custom",
+					"tokenizer": "standard",
+					"filter": [
+						"phrase",
+						"word",
+						"original"
+					]
+				},
+				"Original": {
+					"type": "custom",
+					"tokenizer": "keyword",
+					"filter": [
+						"original"
+					]
+				}
+			}
+		}
+	}

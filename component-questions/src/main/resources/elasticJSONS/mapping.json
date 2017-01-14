@@ -1,0 +1,16 @@
+{
+	"question": {
+		"properties": {
+			"questionBody": {
+				"type": "string",
+				"analyzer": "Partial",
+				"search_analyzer": "Original"
+			},
+			"category": {
+			"type": "string",
+				"analyzer":"Phrase",
+				"search_analyzer": "Original"
+			}
+		}
+	}
+}
