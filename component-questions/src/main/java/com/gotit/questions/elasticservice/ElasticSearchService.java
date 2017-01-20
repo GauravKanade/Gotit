@@ -34,6 +34,7 @@ import com.gotit.entity.Target;
 import com.gotit.entity.TestPaper;
 import com.gotit.entity.User;
 import com.gotit.questions.util.QuestionUtil;
+import com.gotit.util.Log;
 
 @Component
 public class ElasticSearchService implements ElasticSearchConstants {
@@ -43,7 +44,6 @@ public class ElasticSearchService implements ElasticSearchConstants {
 	@Autowired
 	ElasticQueryGenerator elasticQueryGenerator;
 	TransportClient client;
-	private static final Logger logger = Logger.getLogger(ElasticSearchService.class.getName());
 
 	public ElasticSearchService() {
 		try {
@@ -51,7 +51,7 @@ public class ElasticSearchService implements ElasticSearchConstants {
 				client = new PreBuiltTransportClient(Settings.EMPTY)
 						.addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName("localhost"), 9200))
 						.addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName("localhost"), 9300));
-				logger.info(() -> "<<elasticSearchService - client initialized");
+				Log.i("<<elasticSearchService - client initialized");
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -60,28 +60,29 @@ public class ElasticSearchService implements ElasticSearchConstants {
 
 	private void applySettingsMapping(String indexName) {
 		String settingsJSON = questionUtil.readFileAsString("settings.json");
-		logger.info(() -> MessageFormat.format("settings JSON: {0}", settingsJSON));
+		Log.i(MessageFormat.format("settings JSON: {0}", settingsJSON));
 		boolean indexCreated = client.admin().indices().prepareCreate(indexName).setSettings(settingsJSON).execute()
 				.actionGet().isAcknowledged();
-		logger.info(() -> "Settings applied: " + indexCreated);
+		Log.i("Settings applied: " + indexCreated);
 		if (indexCreated) {
 			String mappingsJSON = questionUtil.readFileAsString("mapping.json");
-			logger.info(() -> MessageFormat.format("mappings JSON: {0}", mappingsJSON));
+			Log.i(MessageFormat.format("mappings JSON: {0}", mappingsJSON));
 			boolean isMapingApplied = client.admin().indices().preparePutMapping(indexName).setSource(mappingsJSON)
 					.setType(TYPE_QUESTION).execute().actionGet().isAcknowledged();
-			logger.info(() -> "Mappings Applied: " + isMapingApplied);
+			Log.i("Mappings Applied: " + isMapingApplied);
 			if (isMapingApplied) {
 				String aliasName = ALIAS_INDEX.replace(INDEX_NAME, indexName);
 				boolean isAliasApplied = client.admin().indices().prepareAliases().addAlias(indexName, aliasName).get()
 						.isAcknowledged();
-				logger.info(() -> "Alias Applied: " + isAliasApplied);
+				Log.i("Alias Applied: " + isAliasApplied);
 			}
 		}
 	}
 
 	public Map<String, Object> saveQuestion(Question questionEntity) {
-		logger.info(() -> ">>saveComplaint() - questionEntity: " + questionEntity);
+		Log.i(">>ElasticSearchService.saveComplaint() - questionEntity: " + questionEntity);
 		String indexName = questionUtil.generateQuestionIndexName(questionEntity);
+		Log.d(">>ElasticSearhService.saveQuestion() - question Index: " + indexName);
 		if (!client.admin().indices().prepareExists(indexName).execute().actionGet().isExists()) {
 			applySettingsMapping(indexName);
 		}
@@ -91,6 +92,7 @@ public class ElasticSearchService implements ElasticSearchConstants {
 		String indexJson = questionUtil.getStringJSONFromObject(entityMap);
 		IndexResponse indexResponse = index(indexName, TYPE_QUESTION, String.valueOf(questionEntity.getQuestionId()),
 				indexJson);
+		Log.d(">>ElasticSearhService.saveQuestion() - indexResponse:" + indexResponse);
 		Map<String, Object> responseMap = new HashMap<>();
 		responseMap.put("questionId", indexResponse.getId());
 		responseMap.put("indexName", indexResponse.getIndex());
@@ -101,13 +103,14 @@ public class ElasticSearchService implements ElasticSearchConstants {
 	}
 
 	public Map<String, Object> saveTarget(Target target) {
-		logger.info(() -> ">>saveTarget() - targetEntity: " + target);
+		Log.i(">>saveTarget() - targetEntity: " + target);
 
 		Map<String, Object> entityMap = questionUtil.getMapFromObject(target);
 		alterEntity(entityMap);
 
 		String indexJson = questionUtil.getStringJSONFromObject(entityMap);
 		IndexResponse indexResponse = index(INDEX_TARGET, TYPE_TARGET, String.valueOf(target.getTargetId()), indexJson);
+		Log.d(">>ElasticSearhService.saveTarget() - indexResponse:" + indexResponse);
 		Map<String, Object> responseMap = new HashMap<>();
 		responseMap.put("targetId", indexResponse.getId());
 		responseMap.put("indexName", indexResponse.getIndex());
@@ -150,7 +153,8 @@ public class ElasticSearchService implements ElasticSearchConstants {
 		// nothing to alter
 	}
 
-	public Map<String, Object> searchById(String indexName, String indexType, String questionId) throws IndexNotFoundException{
+	public Map<String, Object> searchById(String indexName, String indexType, String questionId)
+			throws IndexNotFoundException {
 		GetResponse getResponse = client.prepareGet(indexName, indexType, questionId).get();
 		return getResponse.getSource();
 	}
@@ -158,7 +162,7 @@ public class ElasticSearchService implements ElasticSearchConstants {
 	public Map<String, Object> searchByKeyword(String indexName, String indexType, String keyword, String query,
 			int pageNumber, int pageSize, String sort, boolean isRandom) {
 		String queryJSON = elasticQueryGenerator.generateElasticQuery(indexName, keyword, query, isRandom);
-		System.out.println("Elastic Query = " + queryJSON);
+		Log.d(">>ElasticSearhService.searchByKeyword() - query:" + queryJSON);
 		SearchRequestBuilder searchRequestBuilder = client.prepareSearch(indexName).setTypes(indexType)
 				.setSearchType(SearchType.DFS_QUERY_THEN_FETCH);
 		searchRequestBuilder.setQuery(QueryBuilders.wrapperQuery(queryJSON));
@@ -173,7 +177,7 @@ public class ElasticSearchService implements ElasticSearchConstants {
 	}
 
 	public Map<String, Object> saveTestPaper(TestPaper testPaper) {
-		logger.info(() -> ">>saveTestPaper() - testPaper: " + testPaper);
+		Log.i(">>saveTestPaper() - testPaper: " + testPaper);
 		String indexName = questionUtil.generateTestPaperIndexName(testPaper.getTarget());
 		Map<String, Object> entityMap = questionUtil.getMapFromObject(testPaper);
 		alterEntity(entityMap);
@@ -181,6 +185,7 @@ public class ElasticSearchService implements ElasticSearchConstants {
 		String indexJson = questionUtil.getStringJSONFromObject(entityMap);
 		IndexResponse indexResponse = index(indexName, TYPE_TEST_PAPER, String.valueOf(testPaper.getTestId()),
 				indexJson);
+		Log.d(">>ElasticSearhService.saveTestPaper() - indexResponse:" + indexResponse);
 		Map<String, Object> responseMap = new HashMap<>();
 		responseMap.put("testId", indexResponse.getId());
 		responseMap.put("indexName", indexResponse.getIndex());
@@ -191,12 +196,13 @@ public class ElasticSearchService implements ElasticSearchConstants {
 	}
 
 	public Map<String, Object> saveUser(User user) {
-		logger.info(() -> ">>saveUser() - user: " + user);
+		Log.i(">>saveUser() - user: " + user);
 		Map<String, Object> entityMap = questionUtil.getMapFromObject(user);
 		alterEntity(entityMap);
 
 		String indexJson = questionUtil.getStringJSONFromObject(entityMap);
 		IndexResponse indexResponse = index(INDEX_USER, TYPE_USER, user.getUserId(), indexJson);
+		Log.d(">>ElasticSearhService.saveUser() - indexResponse:" + indexResponse);
 		Map<String, Object> responseMap = new HashMap<>();
 		responseMap.put("userId", indexResponse.getId());
 		responseMap.put("indexName", indexResponse.getIndex());

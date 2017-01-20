@@ -30,6 +30,7 @@ import com.gotit.exceptions.ValidationException;
 import com.gotit.questions.elasticservice.ElasticSearchConstants;
 import com.gotit.questions.elasticservice.ElasticSearchService;
 import com.gotit.questions.util.QuestionUtil;
+import com.gotit.util.Log;
 
 @RestController
 @RequestMapping(value = "/api/practicePaper")
@@ -40,8 +41,6 @@ public class PracticeTestController implements ElasticSearchConstants {
 	@Autowired
 	QuestionUtil questionUtil;
 
-	private static final Logger logger = Logger.getLogger(PracticeTestController.class.getName());
-
 	@RequestMapping(value = "/generate/{userId}/{targetId}/{subject}", method = RequestMethod.GET)
 	public @ResponseBody TestPaper generatePracticePaper(@PathVariable(value = "userId", required = true) String userId,
 			@PathVariable(value = "targetId", required = true) String targetId,
@@ -49,31 +48,33 @@ public class PracticeTestController implements ElasticSearchConstants {
 		// validate user
 		User user = validateAndGetUser(userId);
 		if (ObjectUtils.isEmpty(user)) {
-			logger.info(">>generatePracticePaper() - userId  is invalid");
+			Log.i(">>generatePracticePaper() - userId  is invalid");
 			throw new ResourceNotFoundException("userId is invalid", null, userId);
 		}
 
 		// validate ticket availability
 		Ticket ticket = validateAndGetTicket(user);
 		if (ObjectUtils.isEmpty(ticket)) {
-			logger.info(">>generatePracticePaper() - userId  " + userId + "has no available tickets");
+			Log.i(">>generatePracticePaper() - userId  " + userId + "has no available tickets");
 			throw new ValidationException("userId " + userId + " has no available ticket");
 		}
 
 		// generate test paper
 		TestPaper testPaper = generateTestPaper(userId, targetId, subject);
-
+		Log.d(">>generatePracticePaper() - test paper generated successfully");
 		// utilize the ticket and save the user information
 		ticket.setTestPaperId(testPaper.getTestId());
 		ticket.setTicketAvailable(false);
 		ticket.setTarget(targetId);
 		elasticSearchService.saveTestPaper(testPaper);
 		elasticSearchService.saveUser(user);
+		Log.d(">>generatePracticePaper() - user information saved");
 		return testPaper;
 	}
 
 	@RequestMapping(value = "/evaluate", method = RequestMethod.POST)
 	public @ResponseBody TestPaper evaluateTestPaper(@RequestBody TestPaper testPaper) {
+		Log.i(">>evaluateTestPaper()");
 		elasticSearchService.saveTestPaper(testPaper);
 		if (testPaper.isAnswered())
 			return testPaper;
@@ -103,6 +104,7 @@ public class PracticeTestController implements ElasticSearchConstants {
 			}
 			testPaper.setMarksObatined(totalMarks);
 			testPaper.setEvaluated(true);
+			Log.i("<<evaluateTestPaper() - evaluation of testpaper " + testPaper.getTestId() + ", completed");
 			elasticSearchService.saveTestPaper(testPaper);
 		}
 		return testPaper;
@@ -148,16 +150,17 @@ public class PracticeTestController implements ElasticSearchConstants {
 					TYPE_QUESTION, "", query, 0, numberOfQuestionsRequired, null, true);
 			List<Map<String, Object>> searchedQuestions = (List<Map<String, Object>>) questionSearchResponseMap
 					.get(SEARCH_RESULT);
-			int totalNoQuestionsAvailable = Integer
-					.valueOf(questionSearchResponseMap.get("totalNoQuestions").toString());
+			int totalNoQuestionsAvailable = Integer.valueOf(questionSearchResponseMap.get(TOTAL_NO_RECORDS).toString());
 
 			if (totalNoQuestionsAvailable < numberOfQuestionsRequired) {
-				logger.severe(MessageFormat.format(
+
+				ValidationException validationException = new ValidationException(MessageFormat.format(
 						">>generateTetsPaper() - Sufficient questions are not available. Required: {0}, Available: {1}, indexName: {2}",
 						numberOfQuestionsRequired, totalNoQuestionsAvailable, indexName));
-				throw new ValidationException(MessageFormat.format(
+				Log.e(MessageFormat.format(
 						">>generateTetsPaper() - Sufficient questions are not available. Required: {0}, Available: {1}, indexName: {2}",
-						numberOfQuestionsRequired, totalNoQuestionsAvailable, indexName));
+						numberOfQuestionsRequired, totalNoQuestionsAvailable, indexName), validationException);
+				throw validationException;
 			}
 			int totalMarks = 0;
 			for (int i = 0; i < searchedQuestions.size(); i++) {
@@ -169,7 +172,7 @@ public class PracticeTestController implements ElasticSearchConstants {
 			testPaper.setQuestions(questionList);
 			return testPaper;
 		} catch (IndexNotFoundException e) {
-			logger.severe(">>generateTestPaper(); - something went wrong. May be the index was not found");
+			Log.e(">>generateTestPaper(); - something went wrong. May be the index was not found", e);
 			e.printStackTrace();
 			return null;
 		}
@@ -183,7 +186,7 @@ public class PracticeTestController implements ElasticSearchConstants {
 					ticket = userTicket;
 			}
 			if (ObjectUtils.isEmpty(ticket)) {
-				logger.info(MessageFormat.format(">>validateAndGetTicket() - user with id {0} has no un-used tickets",
+				Log.i(MessageFormat.format(">>validateAndGetTicket() - user with id {0} has no un-used tickets",
 						user.getUserId()));
 			}
 		}
@@ -195,12 +198,12 @@ public class PracticeTestController implements ElasticSearchConstants {
 			Map<String, Object> userMap = elasticSearchService.searchById(INDEX_USER, TYPE_USER, userId);
 			User user = questionUtil.createObjectFromMap(userMap, User.class);
 			if (ObjectUtils.isEmpty(user)) {
-				logger.info(MessageFormat.format(">>validateAndGetTicket(); - user with id {0} not found", userId));
+				Log.i(MessageFormat.format(">>validateAndGetTicket(); - user with id {0} not found", userId));
 				return null;
 			}
 			return user;
 		} catch (Exception e) {
-			logger.severe(">>validateAndGetUser() - user Not found");
+			Log.e(">>validateAndGetUser() - user Not found", e);
 		}
 		return null;
 	}

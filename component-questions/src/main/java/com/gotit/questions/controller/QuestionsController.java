@@ -18,6 +18,7 @@ import com.gotit.exceptions.ValidationException;
 import com.gotit.questions.elasticservice.ElasticSearchConstants;
 import com.gotit.questions.elasticservice.ElasticSearchService;
 import com.gotit.questions.util.QuestionUtil;
+import com.gotit.util.Log;
 
 @Controller
 @RequestMapping("/api/questions")
@@ -32,6 +33,7 @@ public class QuestionsController implements ElasticSearchConstants {
 	@RequestMapping(value = "/question/save", method = RequestMethod.POST)
 	public @ResponseBody Map<String, Object> saveQuestions(@RequestBody Question questionEntity)
 			throws ValidationException {
+		Log.i(">>QuestionController.saveQuestion()");
 		validateQuestion(questionEntity);
 		return elasticSearchService.saveQuestion(questionEntity);
 	}

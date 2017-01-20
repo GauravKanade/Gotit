@@ -40,4 +40,5 @@ public interface ElasticSearchConstants {
 	//other constants
 	String SEARCH_RESULT = "searchResult";
 	String SEARCH_TIME = "searchTime";
+	String TOTAL_NO_RECORDS = "totalNoRecords";
 }

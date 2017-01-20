@@ -16,6 +16,7 @@ import com.gotit.exceptions.ValidationException;
 import com.gotit.questions.elasticservice.ElasticSearchConstants;
 import com.gotit.questions.elasticservice.ElasticSearchService;
 import com.gotit.questions.util.QuestionUtil;
+import com.gotit.util.Log;
 
 @RestController
 @RequestMapping(value = "/api/target")
@@ -29,6 +30,7 @@ public class TargetController implements ElasticSearchConstants {
 
 	@RequestMapping(value = "/target/save", method = RequestMethod.POST)
 	public @ResponseBody Map<String, Object> saveTarget(@RequestBody Target target) throws ValidationException {
+		Log.i(">>TargetController.saveTarget() - target: " + target);
 		validateTarget(target);
 		return elasticSearchService.saveTarget(target);
 	}
@@ -45,6 +47,7 @@ public class TargetController implements ElasticSearchConstants {
 	@RequestMapping(value = "/target/{targetId}", method = RequestMethod.GET)
 	public @ResponseBody Target getTargetById(@PathVariable(value = "targetId") String targetId)
 			throws IndexNotFoundException {
+		Log.i(">>TargetController.getTargetById() - targetId: " + targetId);
 		Map<String, Object> elasticResponse = elasticSearchService.searchById(INDEX_TARGET, TYPE_TARGET, targetId);
 		return questionUtil.createObjectFromMap(elasticResponse, Target.class);
 	}

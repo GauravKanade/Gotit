@@ -24,6 +24,7 @@ public class ElasticQueryGenerator implements ElasticSearchConstants {
 			complaintResponseList.add(searchHit.getSource());
 		}
 		responseMap.put(SEARCH_RESULT, complaintResponseList);
+		responseMap.put(TOTAL_NO_RECORDS, response.getHits().totalHits());
 		return responseMap;
 	}
 
@@ -45,7 +46,6 @@ public class ElasticQueryGenerator implements ElasticSearchConstants {
 		String shouldQuery = generateShouldQuery(keyword);
 		String mustQuery = generateMustQuery(shouldQuery, query);
 		String functionScoreQuery = generateFunctionScoreQuery(mustQuery, isRandom);
-		//String elasticQuery = BOOL_QUERY.replace(BOOL, mustQuery);
 		return functionScoreQuery;
 	}
 

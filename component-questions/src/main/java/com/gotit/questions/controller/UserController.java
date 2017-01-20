@@ -1,6 +1,6 @@
 package com.gotit.questions.controller;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +22,7 @@ import com.gotit.questions.elasticservice.ElasticSearchConstants;
 import com.gotit.questions.elasticservice.ElasticSearchService;
 import com.gotit.questions.payment.PaymentService;
 import com.gotit.questions.util.QuestionUtil;
+import com.gotit.util.Log;
 
 @RestController
 @RequestMapping(value = "/api/users")
@@ -38,6 +39,7 @@ public class UserController implements ElasticSearchConstants {
 
 	@RequestMapping(value = "/user/save", method = RequestMethod.POST)
 	public @ResponseBody Map<String, Object> saveUser(@RequestBody User user) throws ValidationException {
+		Log.i(">>UserController.saveUser() - user: " + user);
 		validateUser(user);
 		if (user.getCreatedOn() == 0)
 			user.setCreatedOn(System.currentTimeMillis());
@@ -59,6 +61,7 @@ public class UserController implements ElasticSearchConstants {
 
 	@RequestMapping(value = "/user/{userId}", method = RequestMethod.GET)
 	public @ResponseBody User getUserById(@PathVariable(value = "userId") String userId) throws IndexNotFoundException {
+		Log.i(">>UserController.getUserById() - userId: " + userId);
 		Map<String, Object> elasticResponse = elasticSearchService.searchById(INDEX_USER, TYPE_USER, userId);
 		return questionUtil.createObjectFromMap(elasticResponse, User.class);
 	}
@@ -66,6 +69,7 @@ public class UserController implements ElasticSearchConstants {
 	@SuppressWarnings("unchecked")
 	@RequestMapping(value = "/user/login/{emailId}", method = RequestMethod.GET)
 	public @ResponseBody Map<String, Object> loginUserByEmailId(@PathVariable(value = "emailId") String emailId) {
+		Log.i(">>UserController.loginUserByEmailId() - emailId=" + emailId);
 		Map<String, Object> loginResponse = new HashMap<>();
 		Map<String, Object> elasticResponse = elasticSearchService.searchByKeyword(INDEX_USER, TYPE_USER, "",
 				"emailId=" + emailId, 0, 10, null, false);
@@ -84,43 +88,59 @@ public class UserController implements ElasticSearchConstants {
 	@RequestMapping(value = "/ticket/generate", method = RequestMethod.POST)
 	public @ResponseBody Map<String, Object> generateTicket(@RequestBody Map<String, Object> requestMap)
 			throws ValidationException, IndexNotFoundException {
+		Log.i(">>UserController.generateTicket() - requestMap=" + requestMap);
 		Map<String, Object> responseMap = new HashMap<>();
 		if (requestMap.containsKey("userId")) {
-			User user = getUserById(requestMap.get("userId").toString());
-			Map<String, Object> paymentResponseMap = paymentService.validateAndServicePayment(requestMap);
-			if (Boolean.valueOf(paymentResponseMap.get("success").toString())) {
-				Ticket ticket = generateNewTicket("paymentDetails");
-				List<Ticket> ticketList = user.getTickets();
-				ticketList.add(ticket);
-				user.setTickets(ticketList);
-				elasticSearchService.saveUser(user);
+			if (requestMap.containsKey("numberOfTickets")) {
+				User user = getUserById(requestMap.get("userId").toString());
+				Map<String, Object> paymentResponseMap = paymentService.validateAndServicePayment(requestMap);
+				if (Boolean.valueOf(paymentResponseMap.get("success").toString())) {
+					List<Ticket> ticketsGenerated = generateNewTicket("paymentDetails",
+							requestMap.get("numberOfTickets").toString());
+					List<Ticket> ticketList = user.getTickets();
+					ticketList.addAll(ticketsGenerated);
+					user.setTickets(ticketList);
+					elasticSearchService.saveUser(user);
 
-				responseMap.put("success", true);
-				responseMap.put("userId", user.getUserId());
-				responseMap.put("time", System.currentTimeMillis());
-				responseMap.put("ticketId", ticket.getTicketId());
+					responseMap.put("success", true);
+					responseMap.put("userId", user.getUserId());
+					responseMap.put("time", System.currentTimeMillis());
+					return responseMap;
+				}
+				responseMap.put("success", false);
+				responseMap.put("error", "payment failed");
+				responseMap.put("errorCode", "PAYMENT");
+				return responseMap;
+			} else {
+				responseMap.put("success", false);
+				responseMap.put("error", "ticket request does not contain numberOfTickets");
+				responseMap.put("errorCode", "VALIDATION");
 				return responseMap;
 			}
-			responseMap.put("success", false);
-			responseMap.put("error", "payment failed");
-			responseMap.put("errorCode", "PAYMENT");
-			return responseMap;
 		} else {
 			responseMap.put("success", false);
 			responseMap.put("error", "ticket request does not contain userId");
 			responseMap.put("errorCode", "VALIDATION");
 			return responseMap;
 		}
+
 	}
 
-	private Ticket generateNewTicket(String paymentDetails) {
-		Ticket ticket = new Ticket();
-		ticket.setCreatedOn(System.currentTimeMillis());
-		ticket.setPaymentInformation(paymentDetails);
-		ticket.setTicketAvailable(true);
-		ticket.setTicketId(String.valueOf((long) (Math.random() * 2737868362876L)));
-		ticket.setTestPaperId(null);
-		ticket.setTarget(null);
-		return ticket;
+	private List<Ticket> generateNewTicket(String paymentDetails, String numberOfTickets) {
+		List<Ticket> ticketList = new ArrayList<>();
+
+		int ticketCount = Integer.parseInt(numberOfTickets);
+		for (int i = 1; i <= ticketCount; i++) {
+			Ticket ticket = new Ticket();
+			ticket.setCreatedOn(System.currentTimeMillis());
+			ticket.setPaymentInformation(paymentDetails);
+			ticket.setTicketAvailable(true);
+			ticket.setTicketId(String.valueOf((long) (Math.random() * 2737868362876L)));
+			ticket.setTestPaperId(null);
+			ticket.setTarget(null);
+
+			ticketList.add(ticket);
+		}
+		return ticketList;
 	}
 }
