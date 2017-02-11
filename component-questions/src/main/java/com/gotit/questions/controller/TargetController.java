@@ -1,5 +1,7 @@
 package com.gotit.questions.controller;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.lucene.index.IndexNotFoundException;
@@ -38,10 +40,8 @@ public class TargetController implements ElasticSearchConstants {
 	private void validateTarget(Target target) throws ValidationException {
 		if (target.getTargetId() == null)
 			throw new ValidationException("Target object does not contain targetId");
-		if (target.getSubjects() == null || target.getSubjects().size() == 0)
+		if (target.getSubjects() == null || target.getSubjects().length == 0)
 			throw new ValidationException("Target does not contain subjects");
-		if (target.getTargetName() == null || target.getTargetName().length() == 0)
-			throw new ValidationException("Target does not conatin a name");
 	}
 
 	@RequestMapping(value = "/target/{targetId}", method = RequestMethod.GET)
@@ -52,4 +52,15 @@ public class TargetController implements ElasticSearchConstants {
 		return questionUtil.createObjectFromMap(elasticResponse, Target.class);
 	}
 
+	@RequestMapping(value = "/target/all", method = RequestMethod.GET)
+	public List<Target> getAllTargets() throws IndexNotFoundException {
+		Map<String, Object> elasticSearchResponse = elasticSearchService.searchByKeyword(INDEX_TARGET, TYPE_TARGET, "",
+				null, 0, 100, null, false);
+		String targetListString = questionUtil.getStringJSONFromObject(elasticSearchResponse.get(SEARCH_RESULT));
+		Target[] targets = questionUtil.createObjectFromString(targetListString, Target[].class);
+		// .createObjectFromString(elasticSearchResponse.get(SEARCH_RESULT).toString(),
+		// Target[].class);
+		return Arrays.asList(targets);
+
+	}
 }

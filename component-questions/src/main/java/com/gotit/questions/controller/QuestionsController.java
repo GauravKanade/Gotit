@@ -46,10 +46,10 @@ public class QuestionsController implements ElasticSearchConstants {
 			throw new ValidationException("question does not contain an answer");
 		if (question.getChoices() == null || question.getChoices().length == 0)
 			throw new ValidationException("question does not contain choices");
-		if (question.getTargetId() == null)
+		if (question.getTarget() == null)
 			throw new ValidationException("targetId is not given");
 		try{
-			if (ObjectUtils.isEmpty(elasticSearchService.searchById(INDEX_TARGET, TYPE_TARGET, question.getTargetId())))
+			if (ObjectUtils.isEmpty(elasticSearchService.searchById(INDEX_TARGET, TYPE_TARGET, question.getTarget())))
 				throw new ValidationException("invalid target");
 		} catch(IndexNotFoundException e){
 			throw new ValidationException("invalid target");
@@ -85,7 +85,7 @@ public class QuestionsController implements ElasticSearchConstants {
 			@RequestParam(value = "pageSize", required = false, defaultValue = "20") String pageSize,
 			@RequestParam(value = "sort", required = false) String sort,
 			@RequestParam(value = "random", defaultValue = "false") String random,
-			@PathVariable(value = "category") String category) {
+			@PathVariable(value = "category") String category) throws IndexNotFoundException, NumberFormatException {
 		String indexName = questionUtil.generateQuestionIndexName(category);
 		return elasticSearchService.searchByKeyword(indexName, TYPE_QUESTION, keyword, query,
 				Integer.valueOf(pageNumber), Integer.valueOf(pageSize), sort, Boolean.parseBoolean(random));

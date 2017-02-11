@@ -10,7 +10,11 @@ public interface ElasticSearchConstants {
 	String TYPE_TEST_PAPER = "testpaper";
 	String INDEX_USER = "users";
 	String TYPE_USER = "user";
-
+	String INDEX_MARKS_RULE = "marksrules";
+	String TYPE_MARKS_RULE = "marksrule";
+	String INDEX_ORDER = "orders";
+	String TYPE_ORDER = "order";
+	
 	// elastic query templates
 	String BOOL_QUERY = "{ \"bool\": { <BOOL> } }";
 	String SHOULD_QUERY = "\"should\": [ <SHOULD> ] ";

@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "988995296075",
+    "project_id": "stately-arc-135423"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:988995296075:android:3f449b68f3a591c0",
+        "android_client_info": {
+          "package_name": "com.felisys.gotit"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "988995296075-q99gb3kqkkr77al1s2l9ja5ie1bmv1l0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.felisys.gotit",
+            "certificate_hash": "AA8F55946C936B59915D7303A427EF858A433DA7"
+          }
+        },
+        {
+          "client_id": "988995296075-ljhvqaoknfni7kt33cuhc8sm6j488dvo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAc7CcckN0BPm_-ni_UuntW2LMmvO8PyTk"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 1
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

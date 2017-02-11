@@ -1,0 +1,11 @@
+{
+	"user": {
+		"properties": {
+			"emailId": {
+				"type": "string",
+				"analyzer": "Partial",
+				"search_analyzer": "Original"
+			}
+		}
+	}
+}

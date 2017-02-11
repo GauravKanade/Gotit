@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.lucene.index.IndexNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.ObjectUtils;
@@ -41,44 +42,69 @@ public class UserController implements ElasticSearchConstants {
 	public @ResponseBody Map<String, Object> saveUser(@RequestBody User user) throws ValidationException {
 		Log.i(">>UserController.saveUser() - user: " + user);
 		validateUser(user);
-		if (user.getCreatedOn() == 0)
+		if (isNewUser(user)) {
+			elasticSearchService.applyIndexIfIndexDoesNotExist(INDEX_USER, "USER");
+			List<Ticket> ticketList = generateNewTicket("new user", "3");
+			user.setTickets(ticketList);
 			user.setCreatedOn(System.currentTimeMillis());
+		}
 		return elasticSearchService.saveUser(user);
 	}
 
+	private boolean isNewUser(User user) throws ValidationException {
+		if (ObjectUtils.isEmpty(user.getUserId())) {
+			try {
+				user.setUserId(RandomStringUtils.randomAlphabetic(8) + "-"
+						+ String.valueOf(System.currentTimeMillis()).substring(5));
+				Map<String, Object> userByEmail = loginUserByEmailId(user.getEmailId());
+				if (userByEmail.get("success").toString().equals("true"))
+					throw new ValidationException("user with email " + user.getEmailId()
+							+ " already linked to another user, or userId is null");
+				return true;
+			} catch (IndexNotFoundException e) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private void validateUser(User user) throws ValidationException {
-		if (ObjectUtils.isEmpty(user.getUserId()))
-			user.setUserId(String.valueOf(System.currentTimeMillis()));
 		if (ObjectUtils.isEmpty(user.getEmailId()))
 			throw new ValidationException("user object does not have emailId");
-		if (ObjectUtils.isEmpty(user.getUserName()))
-			throw new ValidationException("user object does not have userName");
-		Map<String, Object> userByEmail = loginUserByEmailId(user.getEmailId());
-		if (userByEmail.get("success").toString().equals("true"))
-			throw new ValidationException("user with email " + user.getEmailId() + " already linked to anohter user");
+		if (ObjectUtils.isEmpty(user.getUserFirstName()))
+			throw new ValidationException("user object does not have userFirstName");
 
 	}
 
 	@RequestMapping(value = "/user/{userId}", method = RequestMethod.GET)
-	public @ResponseBody User getUserById(@PathVariable(value = "userId") String userId) throws IndexNotFoundException {
+	public @ResponseBody User getUserById(@PathVariable(value = "userId") String userId)
+			throws IndexNotFoundException, ValidationException {
 		Log.i(">>UserController.getUserById() - userId: " + userId);
 		Map<String, Object> elasticResponse = elasticSearchService.searchById(INDEX_USER, TYPE_USER, userId);
+		if (ObjectUtils.isEmpty(elasticResponse))
+			throw new ValidationException("user with userId: " + userId + " does not exist in database");
 		return questionUtil.createObjectFromMap(elasticResponse, User.class);
 	}
 
 	@SuppressWarnings("unchecked")
 	@RequestMapping(value = "/user/login/{emailId}", method = RequestMethod.GET)
-	public @ResponseBody Map<String, Object> loginUserByEmailId(@PathVariable(value = "emailId") String emailId) {
+	public @ResponseBody Map<String, Object> loginUserByEmailId(@PathVariable(value = "emailId") String emailId)
+			throws IndexNotFoundException {
 		Log.i(">>UserController.loginUserByEmailId() - emailId=" + emailId);
+		elasticSearchService.applyIndexIfIndexDoesNotExist(INDEX_USER, "USER");
 		Map<String, Object> loginResponse = new HashMap<>();
-		Map<String, Object> elasticResponse = elasticSearchService.searchByKeyword(INDEX_USER, TYPE_USER, "",
-				"emailId=" + emailId, 0, 10, null, false);
-		if (!ObjectUtils.isEmpty(elasticResponse.get(SEARCH_RESULT))) {
-			User user = questionUtil.createObjectFromMap(
-					((List<Map<String, Object>>) elasticResponse.get(SEARCH_RESULT)).get(0), User.class);
-			loginResponse.put("success", true);
-			loginResponse.put("user", user);
-			return loginResponse;
+		try {
+			Map<String, Object> elasticResponse = elasticSearchService.searchByKeyword(INDEX_USER, TYPE_USER, "",
+					"emailId=" + emailId, 0, 10, null, false);
+			if (!ObjectUtils.isEmpty(elasticResponse.get(SEARCH_RESULT))) {
+				User user = questionUtil.createObjectFromMap(
+						((List<Map<String, Object>>) elasticResponse.get(SEARCH_RESULT)).get(0), User.class);
+				loginResponse.put("success", true);
+				loginResponse.put("user", user);
+				return loginResponse;
+			}
+		} catch (IndexNotFoundException e) {
+			Log.e("GotitServer", e);
 		}
 		loginResponse.put("success", false);
 		loginResponse.put("error", "User with email " + emailId + " does not exist");
@@ -132,13 +158,11 @@ public class UserController implements ElasticSearchConstants {
 		int ticketCount = Integer.parseInt(numberOfTickets);
 		for (int i = 1; i <= ticketCount; i++) {
 			Ticket ticket = new Ticket();
-			ticket.setCreatedOn(System.currentTimeMillis());
-			ticket.setPaymentInformation(paymentDetails);
 			ticket.setTicketAvailable(true);
-			ticket.setTicketId(String.valueOf((long) (Math.random() * 2737868362876L)));
+			ticket.setTicketId(RandomStringUtils.randomAlphanumeric(15));
 			ticket.setTestPaperId(null);
 			ticket.setTarget(null);
-
+			ticket.setOrderId("newUserOrder");
 			ticketList.add(ticket);
 		}
 		return ticketList;

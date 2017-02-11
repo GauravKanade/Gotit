@@ -42,8 +42,8 @@ public class ElasticQueryGenerator implements ElasticSearchConstants {
 		}
 	}
 
-	public String generateElasticQuery(String indexName, String keyword, String query, boolean isRandom) {
-		String shouldQuery = generateShouldQuery(keyword);
+	public String generateElasticQuery(String indexName, String keyword, String field, String query, boolean isRandom) {
+		String shouldQuery = generateShouldQuery(keyword, field);
 		String mustQuery = generateMustQuery(shouldQuery, query);
 		String functionScoreQuery = generateFunctionScoreQuery(mustQuery, isRandom);
 		return functionScoreQuery;
@@ -58,13 +58,13 @@ public class ElasticQueryGenerator implements ElasticSearchConstants {
 		return functionScoreQuery;
 	}
 
-	public String generateShouldQuery(String keyword) {
+	public String generateShouldQuery(String keyword, String field) {
 		String shouldQueryDetails = "";
 		if (!ObjectUtils.isEmpty(keyword)) {
-			for (String keywordSingle : keyword.split(" ")) {
+			for (String keywordSingle : keyword.split(",")) {
 				if (!ObjectUtils.isEmpty(shouldQueryDetails))
 					shouldQueryDetails += " , ";
-				String complaintBodyMatch = MATCH_QUERY.replace(FEILD, "questionBody").replace(VALUE, keywordSingle);
+				String complaintBodyMatch = MATCH_QUERY.replace(FEILD, field).replace(VALUE, keywordSingle);
 				shouldQueryDetails += complaintBodyMatch;
 			}
 		}
